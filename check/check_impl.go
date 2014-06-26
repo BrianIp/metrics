@@ -31,16 +31,19 @@ type checker struct {
 	m        *metrics.MetricContext
 }
 
+//stores the checks gathered from the config file
 type metricThresholds struct {
 	metricblob string
 	checks     map[string]string
 }
 
+//stores the results of checks for a section of the config file
 type metricResults struct {
 	Message string
 	Checks  map[string]bool // maps check name to result
 }
 
+//struct holding metric's value
 type metric struct {
 	Type  string
 	Name  string
@@ -183,10 +186,13 @@ func (hc *checker) checkMetric(m metricThresholds) metricResults {
 func (hc *checker) replaceNames(expr string) (string, error) {
 	words := strings.Split(expr, " ")
 	for _, word := range words {
+		//metric names must contain a '.'
+		// for instance, metric.Value and metric.Rate are valid metric names
 		if strings.Contains(word, ".") {
 			parts := strings.Split(word, ".")
 			metricName := strings.Join(parts[:len(parts)-1], ".")
 			m, ok := hc.Metrics[metricName]
+			//if the metric was not collected, skip ahead
 			if !ok {
 				continue
 			}
@@ -207,6 +213,7 @@ func getConfigChecks(c *conf.ConfigFile, test string) metricThresholds {
 	m := &metricThresholds{}
 	m.checks = make(map[string]string)
 	checks, _ := c.GetOptions(test)
+	//iterate through sections of config file
 	for _, checkName := range checks {
 		if checkName == "metric-name" {
 			continue
@@ -216,6 +223,7 @@ func getConfigChecks(c *conf.ConfigFile, test string) metricThresholds {
 	return *m
 }
 
+//Returns results of metrics check
 func (hc *checker) GetWarnings() map[string]metricResults {
 	return hc.Warnings
 }
@@ -226,11 +234,19 @@ func (hc *checker) setupConstants() error {
 	if err != nil {
 		return err
 	}
+	// collect constants in the form of a string as such"
+	// " package p
+	//   const1 = val1
+	//   const2 = val2 ..."
 	src := "package p\n"
 	for _, name := range constants {
 		val, _ := hc.c.GetString("constants", name)
 		src += "const " + name + " = " + val + "\n"
 	}
+	//Parse src as if it were a go source code file
+	// and save the package and scope, so that metrics checks
+	// evaluated in the same package and scope can use the same
+	// constants
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "p", src, 0)
 	if err != nil {
