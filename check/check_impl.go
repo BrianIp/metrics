@@ -50,6 +50,7 @@ type metric struct {
 
 //Creates new checker
 //hostport is address to listen on for metrics json
+// m is the metric context for metrics being checked
 func New(hostport, configFile string, m *metrics.MetricContext) (Checker, error) {
 	c, err := conf.ReadConfigFile(configFile)
 	if err != nil {
@@ -67,11 +68,14 @@ func New(hostport, configFile string, m *metrics.MetricContext) (Checker, error)
 	return hc, nil
 }
 
+//Output warnings using input format
 func (hc *checker) OutputWarnings(printer func(Checker, ...string) error, s ...string) error {
 	err := printer(hc, s...)
 	return err
 }
 
+//Get metrics from the metric context, if it exists.
+// Does use json packages to gather metrics.
 func (hc *checker) getMetricsFromContext() error {
 	for name, met := range hc.m.Gauges {
 		hc.Metrics[name] = metric{
@@ -92,14 +96,17 @@ func (hc *checker) getMetricsFromContext() error {
 	return nil
 }
 
-//gets metrics and unmarshals from JSON
+//getMetrics gathers metric values.
+// If there a metric context to collect metrics,
+// use that instead of listening for incoming json packages
 func (hc *checker) getMetrics() error {
 	if hc.m != nil {
 		err := hc.getMetricsFromContext()
 		return err
 	}
 	//get metrics from metrics collector
-	resp, err := http.Get("http://" + hc.hostport + "/api/v1/metrics.json/Counters|Gauges|StatTimers?allowNaN=false")
+	resp, err := http.Get("http://" + hc.hostport +
+		"/api/v1/metrics.json/Counters|Gauges|StatTimers?allowNaN=false")
 	if err != nil {
 		hc.Logger.Println(err)
 		return err
@@ -124,7 +131,7 @@ func (hc *checker) getMetrics() error {
 	return nil
 }
 
-//Checks all metrics metrics.
+//Checks all sections metrics.
 //iterates through checks in config file and checks against collected metrics
 func (hc *checker) CheckMetrics() error {
 	err := hc.getMetrics()
@@ -134,7 +141,9 @@ func (hc *checker) CheckMetrics() error {
 	}
 	//iterate through all sections of tests
 	for _, sectionName := range hc.c.GetSections() {
-		if sectionName == "default" || sectionName == "nagios" || sectionName == "constants" {
+		if sectionName == "default" ||
+			sectionName == "nagios" ||
+			sectionName == "constants" {
 			continue
 		}
 		m := getConfigChecks(hc.c, sectionName)
@@ -143,7 +152,7 @@ func (hc *checker) CheckMetrics() error {
 	return nil
 }
 
-//Check single section against its tests
+//Check single section of metrics tests
 func (hc *checker) checkMetric(m metricThresholds) metricResults {
 	res := &metricResults{}
 	res.Checks = make(map[string]bool)
@@ -159,8 +168,10 @@ func (hc *checker) checkMetric(m metricThresholds) metricResults {
 			continue
 		}
 		//check that expression evaluated to bool
-		if !types.Identical(resultType, types.Typ[types.UntypedBool]) && !types.Identical(resultType, types.Typ[types.Bool]) {
-			hc.Logger.Println("Check: " + name + ": " + check + " does not evaluate to bool")
+		if !types.Identical(resultType, types.Typ[types.UntypedBool]) &&
+			!types.Identical(resultType, types.Typ[types.Bool]) {
+			hc.Logger.Println("Check: " + name + ": " +
+				check + " does not evaluate to bool")
 			continue
 		}
 		res.Checks[name], _ = strconv.ParseBool(result.String())
@@ -180,9 +191,11 @@ func (hc *checker) replaceNames(expr string) (string, error) {
 				continue
 			}
 			if parts[len(parts)-1] == "Value" {
-				expr = strings.Replace(expr, word, strconv.FormatFloat(m.Value, 'f', 5, 64), -1)
+				expr = strings.Replace(expr, word,
+					strconv.FormatFloat(m.Value, 'f', 5, 64), -1)
 			} else if parts[len(parts)-1] == "Rate" {
-				expr = strings.Replace(expr, word, strconv.FormatFloat(m.Rate, 'f', 5, 64), -1)
+				expr = strings.Replace(expr, word,
+					strconv.FormatFloat(m.Rate, 'f', 5, 64), -1)
 			}
 		}
 	}
