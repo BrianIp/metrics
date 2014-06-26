@@ -202,3 +202,27 @@ func TestGetJsonGauge2(t *testing.T) {
 		t.Errorf("did not filter out nan")
 	}
 }
+
+func TestGetJsonStatsTimer(t *testing.T) {
+	t1 := NewStatsTimer(time.Second, 1)
+	type percentileData struct {
+		percentile string
+		value      float64
+	}
+	type statstimerMetric struct {
+		Type        string
+		Name        string
+		Percentiles []percentileData
+	}
+	var m statstimerMetric
+	err := json.Unmarshal(t1.GetJson("test", false), &m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Name != "test" {
+		t.Error("name not marshalled correctly")
+	}
+	if m.Type != "statstimer" {
+		t.Error("type not marshalled correctly")
+	}
+}
