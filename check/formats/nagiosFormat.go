@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"code.google.com/p/goconf/conf" // used for parsing config files
-	"github.com/square/prodeng/metrics/check"
+	"github.com/measure/metrics/check"
 )
 
 var (
@@ -52,7 +52,8 @@ func Nagios(hc check.Checker, configFile ...string) error {
 		if len(msgs) == 0 {
 			continue
 		}
-		res = append(res, fmt.Sprintf("%s\t%s\t%d\t%s\n", ns.hostname, ns.serviceType, nagLevels[level], strings.Join(msgs, ", ")))
+		res = append(res, fmt.Sprintf("%s\t%s\t%d\t%s\n", ns.hostname,
+			ns.serviceType, nagLevels[level], strings.Join(msgs, ", ")))
 	}
 	for _, m := range res {
 		fmt.Println(m)
@@ -65,7 +66,8 @@ func SendNagiosPassive(messages []string, configFile string) error {
 	ns := getNagiosInfo(configFile)
 	for _, message := range messages {
 		printCmd := exec.Command("printf", fmt.Sprintf("\"%s\\n\"", message))
-		sendCmd := exec.Command(ns.NSCA_BINARY_PATH, ns.server, "-c "+ns.NSCA_CONFIG_PATH)
+		sendCmd := exec.Command(ns.NSCA_BINARY_PATH, ns.server,
+			"-c "+ns.NSCA_CONFIG_PATH)
 		sendCmd.Stdin, _ = printCmd.StdoutPipe()
 		sendCmd.Start()
 		printCmd.Run()
@@ -78,7 +80,6 @@ func SendNagiosPassive(messages []string, configFile string) error {
 }
 
 //grabs nagios info from config file
-//TODO: can either grab this info from config file or give as input to send function
 func getNagiosInfo(configFile string) nagSender {
 	ns := &nagSender{}
 	c, err := conf.ReadConfigFile(configFile)

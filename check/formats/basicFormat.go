@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/square/prodeng/metrics/check"
+	"github.com/measure/metrics/check"
 )
 
 func Basic(hc check.Checker, s ...string) error {

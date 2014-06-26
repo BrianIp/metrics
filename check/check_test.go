@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"code.google.com/p/goconf/conf" // used for parsing config files
-	"github.com/square/prodeng/metrics"
+	"github.com/measure/metrics"
 )
 
 func initChecker(t testing.TB) checker {

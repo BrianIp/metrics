@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/square/prodeng/metrics"
+	"github.com/measure/metrics"
 
 	_ "code.google.com/p/go.tools/go/gcimporter"
 	"code.google.com/p/go.tools/go/types"
