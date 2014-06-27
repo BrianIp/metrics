@@ -46,6 +46,10 @@ type StatsTimer struct {
 
 const NOT_INITIALIZED = -1
 
+// default percentiles to compute when serializing statstimer type
+// to stdout/json
+var PERCENTILES = []float64{50, 75, 95, 99, 99.9, 99.99, 99.999}
+
 func NewStatsTimer(timeUnit time.Duration, nsamples int) *StatsTimer {
 
 	s := new(StatsTimer)
@@ -126,16 +130,15 @@ func (s *StatsTimer) Percentile(percentile float64) (float64, error) {
 	return ret, nil
 }
 
-// GetJson returns the metric's statistics formatted as a Json package.
-// If allowNaN is set to false and the metric has NaN values, GetJson
-// returns a nil []byte
-func (s *StatsTimer) GetJson(name string, allowNaN bool) []byte {
+// MarshalJSON returns a byte slice containing representation of 
+// StatsTimer
+func (s *StatsTimer) MarshalJSON() ([]byte, error) {
 	type percentileData struct {
 		percentile string
 		value      float64
 	}
 	var pctiles []percentileData
-	for _, p := range percentiles {
+	for _, p := range PERCENTILES {
 		percentile, err := s.Percentile(p)
 		stuff := fmt.Sprintf("%.6f", p)
 		if err == nil {
@@ -143,17 +146,9 @@ func (s *StatsTimer) GetJson(name string, allowNaN bool) []byte {
 		}
 	}
 	data := struct {
-		Type        string
-		Name        string
 		Percentiles []percentileData
 	}{
-		"statstimer",
-		name,
 		pctiles,
 	}
-	b, err := json.Marshal(data)
-	if err != nil {
-		return nil
-	}
-	return b
+	return json.Marshal(data)
 }

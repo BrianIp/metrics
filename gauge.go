@@ -3,7 +3,7 @@
 package metrics
 
 import (
-	"fmt"
+	"encoding/json"
 	"math"
 	"sync"
 )
@@ -42,14 +42,8 @@ func (g *Gauge) Get() float64 {
 	return g.v
 }
 
-// GetJson returns the metric's statistics formatted as a Json package.
-// If allowNaN is set to false and the metric has NaN values, GetJson
-// returns a nil []byte
-func (g *Gauge) GetJson(name string, allowNaN bool) []byte {
-	val := g.Get()
-	if allowNaN || !math.IsNaN(val) {
-		return ([]byte(fmt.Sprintf(`{"type": "gauge", "name": "%s", "value": %f}`,
-			name, val)))
-	}
-	return nil
+// MarshalJSON returns a byte slice of JSON representation of
+// Gauge
+func (g *Gauge) MarshalJSON() ([]byte, error) {
+	return json.Marshal(g.v)
 }

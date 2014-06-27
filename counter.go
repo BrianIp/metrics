@@ -4,7 +4,6 @@ package metrics
 
 import (
 	"fmt"
-	"math"
 	"sync"
 	"sync/atomic"
 )
@@ -97,15 +96,10 @@ func (c *Counter) ComputeRate() float64 {
 	return c.rate
 }
 
-// GetJson returns the metric's statistics formatted as a Json package.
-// If allowNaN is set to false and the metric has NaN values, GetJson
-// returns a nil []byte
-func (c *Counter) GetJson(name string, allowNaN bool) []byte {
+// MarshalJSON returns a byte slice of JSON representation of
+// counter
+func (c *Counter) MarshalJSON() ([]byte, error) {
 	rate := c.ComputeRate()
-	if allowNaN || !math.IsNaN(rate) {
-		return ([]byte(fmt.Sprintf(
-			`{"type": "counter", "name": "%s", "value": %d, "rate": %f}`,
-			name, c.Get(), rate)))
-	}
-	return nil
+	return ([]byte(
+		fmt.Sprintf( `{"current": %d, "rate": %f}`,c.Get(), rate))), nil
 }

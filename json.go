@@ -1,97 +1,69 @@
 // Copyright (c) 2014 Square, Inc
 
+
 package metrics
 
 import (
-	"fmt"
 	"io"
 	"encoding/json"
+	"errors"
+	"reflect"
 )
+
+// XXX: evaluate merging the types with individual definitions
+// XXX: MetricContext holds registry of names and associated 
+// metrics
+
+// MetricJSON is a type for serializing any metric type
+type MetricJSON struct {
+	Type string
+	Name string
+	Value interface{}
+}
 
 // EncodeJSON is a streaming encoder that writes all metrics passing filter 
 // to writer w as JSON
 func (m *MetricContext) EncodeJSON(w io.Writer) error {
-
+	w.Write([]byte("["))
+	// JSON disallows trailing-comma
 	prependComma := false
-	w.Write([]byte("[\n"))
-
 	for name, c := range m.Counters {
-		if ! m.OutputFilter(name, c) {
-			continue
-		}
-		if prependComma {
-			w.Write([]byte(",\n"))
-		}
-                w.Write([]byte(fmt.Sprintf(
-                        `{"type": "counter", "name": "%s", "value": %d, "rate": %f}`,
-                        name, c.Get(), c.ComputeRate())))
-		prependComma = true
-        }
-
-	for name, g := range m.Gauges {
-		if ! m.OutputFilter(name, g) {
-			continue
-		}
-		if prependComma {
-			w.Write([]byte(",\n"))
-		}
-                w.Write([]byte(fmt.Sprintf(
-                        `{"type": "gauge", "name": "%s", "value": %d}`,
-                        name, g.Get())))
-		prependComma = true
-        }
-
-
-	for name, c := range m.BasicCounters {
-		if ! m.OutputFilter(name, c) {
-			continue
-		}
-		if prependComma {
-			w.Write([]byte(",\n"))
-		}
-                w.Write([]byte(fmt.Sprintf(
-                        `{"type": "basiccounter", "name": "%s", "value": %d}`,
-                        name, c.Get())))
-		prependComma = true
-        }
-
-
-	for name, s := range m.StatsTimers {
-		if ! m.OutputFilter(name, s) {
-			continue
-		}
-		if prependComma {
-			w.Write([]byte(",\n"))
-		}
-		type percentileData struct {
-			percentile string
-			value      float64
-		}
-
-		var pctiles []percentileData
-		for _, p := range percentiles {
-			percentile, err := s.Percentile(p)
-			stuff := fmt.Sprintf("%.6f", p)
-			if err == nil {
-				pctiles = append(pctiles, percentileData{stuff, percentile})
-			}
-		}
-		data := struct {
-			Type        string
-			Name        string
-			Percentiles []percentileData
-		}{
-			"statstimer",
-			name,
-			pctiles,
-		}
-		b, err := json.Marshal(data)
-		if err != nil {
-			continue
-		}
-		w.Write(b)
-		prependComma = true
+		m.writeJSON(w, name, c, &prependComma)
 	}
 
+	for name, c := range m.BasicCounters {
+		m.writeJSON(w, name, c, &prependComma)
+	}
+	for name, g := range m.Gauges {
+		m.writeJSON(w, name, g, &prependComma)
+	}
+
+	for name, s := range m.StatsTimers {
+		m.writeJSON(w, name, s, &prependComma)
+	}
+	w.Write([]byte("]"))
 	return nil
+}
+
+// unexported functions
+func (m *MetricContext) writeJSON(w io.Writer, name string, v interface{}, prependComma *bool) {
+	b, err := m.marshalMetricJSON(name, v)
+	if err == nil {
+		if *prependComma {
+			w.Write([]byte(","))
+		}
+		w.Write(b)
+		*prependComma  = true
+	}
+}
+
+func (m *MetricContext) marshalMetricJSON(name string, v interface{}) ([]byte, error) {
+	o := new(MetricJSON)
+	if ! m.OutputFilter(name, v) {
+		return nil, errors.New("filtered")
+	}
+	o.Type = reflect.TypeOf(v).String()
+	o.Name = name
+	o.Value = v
+	return json.Marshal(o)
 }
