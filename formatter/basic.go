@@ -1,4 +1,4 @@
-package formats
+package formatter
 
 import (
 	"fmt"
@@ -6,6 +6,9 @@ import (
 
 	"github.com/measure/metrics/check"
 )
+
+// format result of a check to a human readable
+// message
 
 func Basic(hc check.Checker, s ...string) error {
 	for metric, result := range hc.GetWarnings() {

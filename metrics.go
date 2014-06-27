@@ -4,18 +4,16 @@ package metrics
 
 import (
 	"fmt"
-	"io"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
+	"math"
 )
 
 // package initialization code
 // sets up a ticker to "cache" time
 
 var TICKS int64
-
 func init() {
 	start := time.Now().UnixNano()
 	ticker := time.NewTicker(time.Millisecond * jiffy)
@@ -26,16 +24,15 @@ func init() {
 	}()
 }
 
+type OutputFilterFunc func(name string, v interface{}) bool
+
 type MetricContext struct {
 	namespace     string
 	Counters      map[string]*Counter
 	Gauges        map[string]*Gauge
 	BasicCounters map[string]*BasicCounter
 	StatsTimers   map[string]*StatsTimer
-}
-
-type Metric interface {
-	GetJson(name string, allowNaN bool) []byte
+	OutputFilter  OutputFilterFunc
 }
 
 // Creates a new metric context. A metric context specifies a namespace
@@ -60,6 +57,9 @@ func NewMetricContext(namespace string) *MetricContext {
 	m.Gauges = make(map[string]*Gauge, 0)
 	m.BasicCounters = make(map[string]*BasicCounter, 0)
 	m.StatsTimers = make(map[string]*StatsTimer, 0)
+	m.OutputFilter = func(name string, v interface{}) bool {
+		return true
+	}
 
 	return m
 }
@@ -94,6 +94,7 @@ func (m *MetricContext) Unregister(v interface{}, name string) {
 	}
 }
 
+
 // Print() prints ALL metrics to stdout
 func (m *MetricContext) Print() {
 	for name, c := range m.Counters {
@@ -119,85 +120,46 @@ func (m *MetricContext) Print() {
 	}
 }
 
-// HttpJsonHandler metrics via json
+
+// HttpJsonHandler setups a handler for exposing metrics via JSON over HTTP
 func (m *MetricContext) HttpJsonHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
 		return
 	}
-	allowNaN := true // if allowNaN is set to false, filter out NaN metric values
+
+	// filter out metrics with NaN if allowNaN is set to false
+	// few JSON decoders barf on NaN values 
+	allowNaN := true
 	if n, ok := r.Form["allowNaN"]; ok && strings.ToLower(n[0]) == "false" {
 		allowNaN = false
 	}
-	paths := ParseURL(r.URL.Path)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("[\n"))
-	WriteMetrics(m.FilterMetrics(paths...), allowNaN, w)
-	w.Write([]byte("]"))
+
+	m.OutputFilter = func(name string, v interface{}) bool {
+		switch v := v.(type) {
+		case *Counter:
+			if !allowNaN && math.IsNaN(v.ComputeRate()) {
+				return false
+			}
+		case *Gauge:
+			if !allowNaN && math.IsNaN(v.Get()) {
+				return false
+			}
+		}
+		return true
+	}
+
+	m.EncodeJSON(w)
 	w.Write([]byte("\n")) // Be nice to curl
 }
 
-func ParseURL(url string) []string {
+
+// unexported functions
+func parseURL(url string) []string {
 	path := strings.SplitN(url, "metrics.json", 2)[1]
 	levels := strings.Split(path, "/")
 	return levels[1:]
-}
-
-//filter metrics
-// return a map of metric name -> metric,
-// return metrics that are of the given type
-//and match the input regexp metricnames
-func (m *MetricContext) FilterMetrics(metricnames ...string) map[interface{}]Metric {
-	if len(metricnames) == 0 {
-		return nil
-	}
-	types := metricnames[0]
-	metricsToCollect := map[interface{}]Metric{}
-	if strings.Contains(types, "Gauges") {
-		for k, v := range m.Gauges {
-			metricsToCollect[k] = v
-		}
-	}
-	if strings.Contains(types, "Counters") {
-		for k, v := range m.Counters {
-			metricsToCollect[k] = v
-		}
-	}
-	if strings.Contains(types, "StatsTimers") {
-		for k, v := range m.StatsTimers {
-			metricsToCollect[k] = v
-		}
-	}
-	if len(metricnames) == 1 {
-		return metricsToCollect
-	}
-	for nameFound, _ := range metricsToCollect {
-		for _, nameLookingFor := range metricnames[1:] {
-			re := regexp.MustCompile(nameLookingFor)
-			if !re.MatchString(nameFound.(string)) {
-				delete(metricsToCollect, nameFound)
-			}
-		}
-	}
-	return metricsToCollect
-}
-
-// WriteMetrics writes the metrics included in m to w.
-// If allowNaN is set to false, metrics with NaN will not be written
-func WriteMetrics(m map[interface{}]Metric, allowNaN bool, w io.Writer) error {
-	prependcomma := false
-	for name, metric := range m {
-		if prependcomma {
-			w.Write([]byte(",\n"))
-			prependcomma = false
-		}
-		b := metric.GetJson(name.(string), allowNaN)
-		if b == nil {
-			continue
-		}
-		w.Write(b)
-		prependcomma = true
-	}
-	return nil
 }

@@ -1,5 +1,4 @@
 //Copyright (c) 2014 Square, Inc
-
 package check
 
 import (
@@ -14,14 +13,12 @@ import (
 	"strings"
 
 	"github.com/measure/metrics"
-
-	_ "code.google.com/p/go.tools/go/gcimporter"
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/goconf/conf" // used for parsing config files
 )
 
 type checker struct {
-	hostport string
+	address string
 	Metrics  map[string]metric
 	Warnings map[string]metricResults
 	c        *conf.ConfigFile
@@ -51,11 +48,9 @@ type metric struct {
 	Rate  float64
 }
 
-//Creates new checker
-//hostport is address to listen on for metrics json
-// m is the metric context for metrics being checked
-func New(hostport, configFile string, m *metrics.MetricContext) (Checker, error) {
-	c, err := conf.ReadConfigFile(configFile)
+// Creates new checker based on configFile
+func New(configFile string, metrics *metric[]) (Checker, error) {
+	cnf, err := conf.ReadConfigFile(configFile)
 	if err != nil {
 		return nil, err
 	}
@@ -65,39 +60,12 @@ func New(hostport, configFile string, m *metrics.MetricContext) (Checker, error)
 		Warnings: make(map[string]metricResults),
 		c:        c,
 		Logger:   log.New(os.Stderr, "LOG: ", log.Lshortfile),
-		m:        m,
 	}
 	hc.setupConstants()
 	return hc, nil
 }
 
-//Output warnings using input format
-func (hc *checker) OutputWarnings(printer func(Checker, ...string) error, s ...string) error {
-	err := printer(hc, s...)
-	return err
-}
 
-//Get metrics from the metric context, if it exists.
-// Does use json packages to gather metrics.
-func (hc *checker) getMetricsFromContext() error {
-	for name, met := range hc.m.Gauges {
-		hc.Metrics[name] = metric{
-			Type:  "gauge",
-			Name:  name,
-			Value: met.Get(),
-			Rate:  0,
-		}
-	}
-	for name, met := range hc.m.Counters {
-		hc.Metrics[name] = metric{
-			Type:  "counter",
-			Name:  name,
-			Value: float64(met.Get()),
-			Rate:  met.ComputeRate(),
-		}
-	}
-	return nil
-}
 
 //getMetrics gathers metric values.
 // If there a metric context to collect metrics,

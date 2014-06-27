@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"time"
-
 	"github.com/measure/metrics/check"
 	"github.com/measure/metrics/check/formats"
 )

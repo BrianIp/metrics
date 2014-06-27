@@ -4,12 +4,16 @@
 
 ### Command Line Utility
 
-The command line utility:
 ```
-./bin/metric_check
+./bin/check -conf in.cfg
 ```
 
-Can be run with the `-conf` option to specify path to the config file described in the section below. The `-hostport` flag will specify the host port to listen on for metrics. The `-nagConf` option specifies to the path to the nagios configuration file. `-basic=true` and `-nagios=true` will set the output format to basic and nagios, respectively.
+
+
+Can be run with the `-conf` option to specify path to the config file 
+described in the section below. The `-hostport` flag will specify the 
+host port to listen on for metrics. The `-nagConf` option specifies to 
+the path to the nagios configuration file. `-basic=true` and `-nagios=true` will set the output format to basic and nagios, respectively.
 
 ### Config File
 
