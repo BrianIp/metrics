@@ -2,7 +2,6 @@
 
 package metrics
 
-import "encoding/json"
 import "testing"
 import "time"
 import "math"
@@ -110,15 +109,14 @@ func TestJsonHandler1(t *testing.T) {
 	g2 := NewGauge()
 	m.Register(g2, "testGauge2")
 	g2.Set(float64(42)) // g2 is not NaN
-	req, err := http.NewRequest("GET", "metrics.json/Gauges", nil)
+	req, err := http.NewRequest("GET", "metrics.json", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	response := httptest.NewRecorder()
 	m.HttpJsonHandler(response, req)
 	if !strings.Contains(response.Body.String(), "NaN") {
-		t.Errorf("Expected a NaN value in response, but got: " +
-			response.Body.String())
+		t.Errorf("Expected a NaN value in response, but got: " + response.Body.String())
 	}
 }
 
@@ -130,99 +128,13 @@ func TestJsonHandler2(t *testing.T) {
 	g2 := NewGauge()
 	m.Register(g2, "testGauge2")
 	g2.Set(float64(42)) // g2 is not NaN
-	req, err := http.NewRequest("GET", "metrics.json/Gauges?allowNaN=false", nil)
+	req, err := http.NewRequest("GET", "metrics.json?allowNaN=false", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	response := httptest.NewRecorder()
 	m.HttpJsonHandler(response, req)
 	if strings.Contains(response.Body.String(), "NaN") {
-		t.Errorf("Did not expect a NaN value in response, but got: " +
-			response.Body.String())
-	}
-}
-
-func TestGetJsonCounter1(t *testing.T) {
-	c1 := NewCounter()
-	c1.Set(uint64(10))
-	c1.Add(1)
-	type counterMetric struct {
-		Name  string
-		Type  string
-		Value uint64
-		Rate  float64
-	}
-	var m counterMetric
-	err := json.Unmarshal(c1.GetJson("test", true), &m)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if m.Name != "test" {
-		t.Error("name not marshalled correctly")
-	}
-	if m.Type != "counter" {
-		t.Error("type not marshalled correctly")
-	}
-	if m.Rate >= 0.1 || m.Rate <= -0.1 {
-		t.Error("rate not marshalled correctly")
-	}
-	if m.Value != uint64(11) {
-		t.Error("value not marshalled correctly")
-	}
-}
-
-func TestGetJsonGauge1(t *testing.T) {
-	g1 := NewGauge()
-	g1.Set(float64(10))
-	type gaugeMetric struct {
-		Name  string
-		Type  string
-		Value float64
-	}
-	var m gaugeMetric
-	err := json.Unmarshal(g1.GetJson("test", true), &m)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if m.Name != "test" {
-		t.Error("name not marshalled correctly")
-	}
-	if m.Type != "gauge" {
-		t.Error("type not marshalled correctly")
-	}
-	if m.Value != float64(10) {
-		t.Error("value not marshalled correctly")
-	}
-}
-
-func TestGetJsonGauge2(t *testing.T) {
-	g1 := NewGauge()
-	r := g1.GetJson("test", false)
-	if r != nil {
-		t.Errorf("did not filter out nan")
-	}
-}
-
-func TestGetJsonStatsTimer(t *testing.T) {
-	t1 := NewStatsTimer(time.Second, 1)
-	type percentileData struct {
-		percentile string
-		value      float64
-	}
-	type statstimerMetric struct {
-		Type        string
-		Name        string
-		Percentiles []percentileData
-	}
-	var m statstimerMetric
-	err := json.Unmarshal(t1.GetJson("test", false), &m)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if m.Name != "test" {
-		t.Error("name not marshalled correctly")
-	}
-	if m.Type != "statstimer" {
-		t.Error("type not marshalled correctly")
+		t.Errorf("Did not expect a NaN value in response, but got: " + response.Body.String())
 	}
 }
