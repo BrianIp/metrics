@@ -3,7 +3,9 @@
 package metrics
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"sort"
 	"sync"
@@ -43,6 +45,10 @@ type StatsTimer struct {
 }
 
 const NOT_INITIALIZED = -1
+
+// default percentiles to compute when serializing statstimer type
+// to stdout/json
+var PERCENTILES = []float64{50, 75, 95, 99, 99.9, 99.99, 99.999}
 
 func NewStatsTimer(timeUnit time.Duration, nsamples int) *StatsTimer {
 
@@ -122,4 +128,27 @@ func (s *StatsTimer) Percentile(percentile float64) (float64, error) {
 	ret := float64(in[nearest_rank]) / float64(s.timeUnit.Nanoseconds())
 
 	return ret, nil
+}
+
+// MarshalJSON returns a byte slice containing representation of
+// StatsTimer
+func (s *StatsTimer) MarshalJSON() ([]byte, error) {
+	type percentileData struct {
+		percentile string
+		value      float64
+	}
+	var pctiles []percentileData
+	for _, p := range PERCENTILES {
+		percentile, err := s.Percentile(p)
+		stuff := fmt.Sprintf("%.6f", p)
+		if err == nil {
+			pctiles = append(pctiles, percentileData{stuff, percentile})
+		}
+	}
+	data := struct {
+		Percentiles []percentileData
+	}{
+		pctiles,
+	}
+	return json.Marshal(data)
 }

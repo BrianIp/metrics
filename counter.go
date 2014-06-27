@@ -3,6 +3,7 @@
 package metrics
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 )
@@ -93,4 +94,12 @@ func (c *Counter) ComputeRate() float64 {
 	}
 
 	return c.rate
+}
+
+// MarshalJSON returns a byte slice of JSON representation of
+// counter
+func (c *Counter) MarshalJSON() ([]byte, error) {
+	rate := c.ComputeRate()
+	return ([]byte(
+		fmt.Sprintf(`{"current": %d, "rate": %f}`, c.Get(), rate))), nil
 }
