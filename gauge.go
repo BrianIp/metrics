@@ -3,6 +3,7 @@
 package metrics
 
 import (
+	"encoding/json"
 	"math"
 	"sync"
 )
@@ -39,4 +40,10 @@ func (g *Gauge) Get() float64 {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.v
+}
+
+// MarshalJSON returns a byte slice of JSON representation of
+// Gauge
+func (g *Gauge) MarshalJSON() ([]byte, error) {
+	return json.Marshal(g.v)
 }

@@ -3,6 +3,7 @@
 package metrics
 
 import (
+	"encoding/json"
 	"sync/atomic"
 )
 
@@ -38,4 +39,10 @@ func (c *BasicCounter) Add(delta uint64) {
 // Get value of counter
 func (c *BasicCounter) Get() uint64 {
 	return uint64(*c)
+}
+
+// MarshalJSON returns a byte slice of JSON representation of
+// basiccounter
+func (c *BasicCounter) MarshalJSON() ([]byte, error) {
+	return json.Marshal(uint64(*c))
 }
