@@ -19,8 +19,8 @@ type Counter struct {
 }
 
 // Counters differ from BasicCounter by having additional
-// fields for computing rate
-// All basic counter operations are atomic and no locks are held
+// fields for computing rate. Operations on counter hold
+// a mutex. use BasicCounter if you need lock-free counters 
 func NewCounter() *Counter {
 	c := new(Counter)
 	c.Reset()
@@ -31,6 +31,9 @@ func NewCounter() *Counter {
 // Usually called from NewCounter but useful if you have to
 // re-use and existing object
 func (c *Counter) Reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.rate = 0.0
 	c.ticks_p = 0
 	c.ticks_v = 0
@@ -41,6 +44,9 @@ func (c *Counter) Reset() {
 // Set Counter value. This is useful if you are reading a metric
 // that is already a counter
 func (c *Counter) Set(v uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.ticks_v = TICKS
 	atomic.StoreUint64(&c.v, v)
 
@@ -53,6 +59,9 @@ func (c *Counter) Set(v uint64) {
 
 // Add value to counter
 func (c *Counter) Add(delta uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.ticks_v = TICKS
 	atomic.AddUint64(&c.v, delta)
 
@@ -65,6 +74,9 @@ func (c *Counter) Add(delta uint64) {
 
 // Get value of counter
 func (c *Counter) Get() uint64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	return c.v
 }
 
