@@ -56,18 +56,41 @@ func TestDefaultGaugeVal(t *testing.T) {
 		t.Errorf("c.Get() = %v, want %v", c.Get(), math.NaN())
 	}
 }
-func TestGaugePercentile(t *testing.T) {
-	c := NewGauge()
-	if !math.IsNaN(c.Get()) {
-		t.Errorf("c.Get() = %v, want %v", c.Get(), math.NaN())
-	}
-}
+
 func TestDefaultCounterVal(t *testing.T) {
 	c := NewCounter()
 	if c.Get() != 0 {
 		t.Errorf("c.Get() = %v, want %v", c.Get(), 0)
 	}
 }
+
+func TestBasicCounterVal(t *testing.T) {
+	c := NewBasicCounter()
+	if c.Get() != 0 {
+		t.Errorf("c.Get() = %v, want %v", c.Get(), 0)
+	}
+}
+
+func TestBasicCounterInc(t *testing.T) {
+	c := NewBasicCounter()
+	var wg sync.WaitGroup
+
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			c.Add(1)
+		}()
+	}
+
+	// block till all goroutines finish
+	wg.Wait()
+
+	if c.Get() != 100 {
+		t.Errorf("c.Get() = %v, want %v", c.Get(), 100)
+	}
+}
+
 
 func TestStatsTimer(t *testing.T) {
 	s := NewStatsTimer(time.Millisecond, 100) // keep 100 samples

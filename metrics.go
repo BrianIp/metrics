@@ -3,6 +3,7 @@
 package metrics
 
 import (
+	"sync/atomic"
 	"net/http"
 	"strings"
 	"time"
@@ -18,7 +19,7 @@ func init() {
 	ticker := time.NewTicker(time.Millisecond * jiffy)
 	go func() {
 		for t := range ticker.C {
-			TICKS = t.UnixNano() - start
+			atomic.StoreInt64(&TICKS, t.UnixNano() - start)
 		}
 	}()
 }
