@@ -4,9 +4,16 @@
 // Initialize a metric context
 m := metrics.NewMetricContext("system")
 
-// Create a new counter
-// Add/Set operations are atomic
-// No locks are held for counter operations
+// Create a basic counter, all ops are atomic
+c := metrics.NewBasicCounter()
+
+c.Add(n)    // increment counter by delta n
+c.Set(n)    // Set counter value to n
+
+
+// Create a new counter; has additional state associated with it
+// to calculate rate
+
 c := metrics.NewCounter()
 
 c.Add(n)    // increment counter by delta n
