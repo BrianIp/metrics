@@ -19,6 +19,7 @@ import (
 	"go/parser"
 	"go/token"
 	"net/http"
+	"os"
 	"reflect"
 	"strings"
 
@@ -40,7 +41,7 @@ func main() {
 	src := `package p`
 	f, err := parser.ParseFile(fset, "p", src, 0)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	//initialize package and scope to evaluate expressions
@@ -49,17 +50,18 @@ func main() {
 	//insert metric values as constants into scope
 	err = insertMetricValues(hostport, sc, pkg)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	//check all expressions provided in config file
 	err = checkAll(configfile, pkg, sc)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 	}
 }
 
-//ranges through config file and checks all expressions
+//ranges through config file and checks all expressions.
+// prints result messages to stdout
 func checkAll(configfile string, pkg *types.Package, sc *types.Scope) error {
 	cnf, err := conf.ReadConfigFile(configfile)
 	if err != nil {
@@ -72,21 +74,20 @@ func checkAll(configfile string, pkg *types.Package, sc *types.Scope) error {
 		expr, _ := cnf.GetString(section, "expr")
 		_, r, err := types.Eval(expr, pkg, sc)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		//TODO: currently prints message to stdout, format differently if required
 		if exact.BoolVal(r) {
 			message, err := cnf.GetString(section, "true")
 			if err == nil {
-				//fmt.Println(expr)
-				fmt.Println(message)
+				//fmt.Fprintln(expr)
+				fmt.Fprintf(os.Stdout, message)
 			}
 		} else {
 			message, err := cnf.GetString(section, "false")
 			if err == nil {
-				//fmt.Println(expr)
-				fmt.Println(message)
+				//fmt.Fprintln(expr)
+				fmt.Fprintf(os.Stdout, message)
 			}
 		}
 	}
@@ -133,7 +134,7 @@ func insertMetricValues(hostport string, sc *types.Scope, pkg *types.Package) er
 			}
 		default:
 			//a value type came up that wasn't anticipated
-			fmt.Println(reflect.TypeOf(val))
+			fmt.Fprintln(os.Stderr, reflect.TypeOf(val))
 		}
 	}
 	return nil
