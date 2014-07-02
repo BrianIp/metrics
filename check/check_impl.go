@@ -17,7 +17,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-  "io"
+	"io"
 	"net/http"
 	"os"
 	"reflect"
@@ -31,21 +31,21 @@ import (
 )
 
 type checker struct {
-  sc *types.Scope
-  pkg *types.Package
-  hostport string
-  configFile string
+	sc         *types.Scope
+	pkg        *types.Package
+	hostport   string
+	configFile string
 }
 
-func New(hostport string, configFile string) (Checker, error){
-  c := &checker{
-    hostport : hostport,
-    configFile : configFile,
-  }
-  return c, nil
+func New(hostport string, configFile string) (Checker, error) {
+	c := &checker{
+		hostport:   hostport,
+		configFile: configFile,
+	}
+	return c, nil
 }
 
-func (c *checker)NewScopeAndPackage() error {
+func (c *checker) NewScopeAndPackage() error {
 	fset := token.NewFileSet()
 	src := `package p`
 	f, err := parser.ParseFile(fset, "p", src, 0)
@@ -58,20 +58,20 @@ func (c *checker)NewScopeAndPackage() error {
 		return err
 	}
 	c.sc = c.pkg.Scope()
-  return nil
+	return nil
 }
 
 //ranges through config file and checks all expressions.
 // prints result messages to stdout
-func (c *checker)CheckAll(w io.Writer) error {
-  err := c.NewScopeAndPackage()
-  if err != nil {
-    return err
-  }
-  err = c.InsertMetricValues() 
-  if err != nil {
-    return err
-  }
+func (c *checker) CheckAll(w io.Writer) error {
+	err := c.NewScopeAndPackage()
+	if err != nil {
+		return err
+	}
+	err = c.InsertMetricValues()
+	if err != nil {
+		return err
+	}
 	cnf, err := conf.ReadConfigFile(c.configFile)
 	if err != nil {
 		return err
@@ -89,12 +89,12 @@ func (c *checker)CheckAll(w io.Writer) error {
 		if exact.BoolVal(r) {
 			message, err := cnf.GetString(section, "true")
 			if err == nil {
-				fmt.Fprintf(w, message)
+				fmt.Fprintln(w, message)
 			}
 		} else {
 			message, err := cnf.GetString(section, "false")
 			if err == nil {
-				fmt.Fprintf(w, message)
+				fmt.Fprintln(w, message)
 			}
 		}
 	}
@@ -103,7 +103,7 @@ func (c *checker)CheckAll(w io.Writer) error {
 
 //insertMetricValues inserts the values and rates of the metrics collected
 // as constants into the scope used to evaluate the expressions
-func (c *checker)InsertMetricValues() error {
+func (c *checker) InsertMetricValues() error {
 	//get metrics from json package
 	//TODO: get directly from metric context if available
 	resp, err := http.Get("http://" + c.hostport + "/api/v1/metrics.json/")
