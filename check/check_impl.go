@@ -64,14 +64,16 @@ func (c *checker) NewScopeAndPackage() error {
 //ranges through config file and checks all expressions.
 // prints result messages to stdout
 func (c *checker) CheckAll(w io.Writer) error {
-	err := c.NewScopeAndPackage()
-	if err != nil {
-		return err
-	}
-	err = c.InsertMetricValues()
-	if err != nil {
-		return err
-	}
+	/*
+		err := c.NewScopeAndPackage()
+		if err != nil {
+			return err
+		}
+		err = c.InsertMetricValuesFromJSON()
+		if err != nil {
+			return err
+		}
+	*/
 	cnf, err := conf.ReadConfigFile(c.configFile)
 	if err != nil {
 		return err
@@ -103,7 +105,7 @@ func (c *checker) CheckAll(w io.Writer) error {
 
 //insertMetricValues inserts the values and rates of the metrics collected
 // as constants into the scope used to evaluate the expressions
-func (c *checker) InsertMetricValues() error {
+func (c *checker) InsertMetricValuesFromJSON() error {
 	//get metrics from json package
 	//TODO: get directly from metric context if available
 	resp, err := http.Get("http://" + c.hostport + "/api/v1/metrics.json/")
@@ -129,7 +131,6 @@ func (c *checker) InsertMetricValues() error {
 			//TODO: make sure we don't panic in case something is not formatted
 			// like expected
 			if current, ok := val["current"]; ok {
-
 				name := strings.Replace(m.Name, ".", "_", -1) + "_current"
 				c.sc.Insert(types.NewConst(0, c.pkg, name,
 					types.New("float64"), exact.MakeFloat64(current.(float64))))
@@ -143,6 +144,23 @@ func (c *checker) InsertMetricValues() error {
 			//a value type came up that wasn't anticipated
 			fmt.Fprintln(os.Stderr, reflect.TypeOf(val))
 		}
+	}
+	return nil
+}
+
+func (c *checker) InsertMetricValuesFromContext(m *metrics.MetricContext) error {
+	for metricName, metric := range m.Gauges {
+		name := strings.Replace(metricName, ".", "_", -1) + "_value"
+		c.sc.Insert(types.NewConst(0, c.pkg, name,
+			types.New("float64"), exact.MakeFloat64(metric.Get())))
+	}
+	for metricName, metric := range m.Counters {
+		name := strings.Replace(metricName, ".", "_", -1) + "_current"
+		c.sc.Insert(types.NewConst(0, c.pkg, name,
+			types.New("float64"), exact.MakeUint64(metric.Get())))
+		name = strings.Replace(metricName, ".", "_", -1) + "_rate"
+		c.sc.Insert(types.NewConst(0, c.pkg, name,
+			types.New("float64"), exact.MakeFloat64(metric.ComputeRate())))
 	}
 	return nil
 }

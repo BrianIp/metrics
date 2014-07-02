@@ -4,6 +4,8 @@ package check
 
 import (
 	"io"
+
+	"github.com/measure/metrics"
 )
 
 type Checker interface {
@@ -14,5 +16,6 @@ type Checker interface {
 
 	// TODO: should these functions really be exported?
 	NewScopeAndPackage() error
-	InsertMetricValues() error
+	InsertMetricValuesFromJSON() error
+	InsertMetricValuesFromContext(m *metrics.MetricContext) error
 }
