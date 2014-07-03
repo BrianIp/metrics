@@ -28,6 +28,16 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
+	err = c.NewScopeAndPackage()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	err = c.InsertMetricValuesFromJSON()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 
 	err = c.CheckAll(os.Stdout)
 	if err != nil {
@@ -37,7 +47,17 @@ func main() {
 	if step > 0 {
 		ticker := time.NewTicker(stepTime)
 		for _ = range ticker.C {
-			err := c.CheckAll(os.Stdout)
+			err := c.NewScopeAndPackage()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return
+			}
+			err = c.InsertMetricValuesFromJSON()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return
+			}
+			err = c.CheckAll(os.Stdout)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				return
