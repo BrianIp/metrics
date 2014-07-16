@@ -10,9 +10,7 @@ import (
 
 type Checker interface {
 	// Runs metric check
-	// creates its own new scope and package and inserts
-	// metric values automagically
-	CheckAll(w io.Writer) error
+	CheckAll(w io.Writer) ([]string, error)
 
 	// TODO: should these functions really be exported?
 	NewScopeAndPackage() error

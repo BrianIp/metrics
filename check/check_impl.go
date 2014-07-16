@@ -63,20 +63,11 @@ func (c *checker) NewScopeAndPackage() error {
 
 //ranges through config file and checks all expressions.
 // prints result messages to stdout
-func (c *checker) CheckAll(w io.Writer) error {
-	/*
-		err := c.NewScopeAndPackage()
-		if err != nil {
-			return err
-		}
-		err = c.InsertMetricValuesFromJSON()
-		if err != nil {
-			return err
-		}
-	*/
+func (c *checker) CheckAll(w io.Writer) ([]string, error) {
+	result := []string{}
 	cnf, err := conf.ReadConfigFile(c.configFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for _, section := range cnf.GetSections() {
 		if section == "default" {
@@ -88,19 +79,34 @@ func (c *checker) CheckAll(w io.Writer) error {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
+		message := ""
+		var m string
+		owner, err := cnf.GetString(section, "owner")
+		if err == nil {
+			message = message + owner
+		} else {
+			message = message + "owner: unknown"
+		}
 		if exact.BoolVal(r) {
-			message, err := cnf.GetString(section, "true")
-			if err == nil {
-				fmt.Fprintln(w, message)
+			m, err = cnf.GetString(section, "true")
+			if err != nil {
+				continue
 			}
 		} else {
-			message, err := cnf.GetString(section, "false")
-			if err == nil {
-				fmt.Fprintln(w, message)
+			m, err = cnf.GetString(section, "false")
+			if err != nil {
+				continue
 			}
 		}
+		_, msg, err := types.Eval(m, c.pkg, c.sc)
+		if err != nil {
+			result = append(result, message+" | "+m)
+			fmt.Println(err)
+		} else {
+			result = append(result, message+" | "+exact.StringVal(msg))
+		}
 	}
-	return nil
+	return result, nil
 }
 
 //insertMetricValues inserts the values and rates of the metrics collected
@@ -153,11 +159,17 @@ func (c *checker) InsertMetricValuesFromContext(m *metrics.MetricContext) error 
 		name := strings.Replace(metricName, ".", "_", -1) + "_value"
 		c.sc.Insert(types.NewConst(0, c.pkg, name,
 			types.New("float64"), exact.MakeFloat64(metric.Get())))
+		sname := name + "_string"
+		c.sc.Insert(types.NewConst(0, c.pkg, sname,
+			types.New("string"), exact.MakeString(fmt.Sprintf("%0.2f", metric.Get()))))
 	}
 	for metricName, metric := range m.Counters {
 		name := strings.Replace(metricName, ".", "_", -1) + "_current"
 		c.sc.Insert(types.NewConst(0, c.pkg, name,
 			types.New("float64"), exact.MakeUint64(metric.Get())))
+		sname := name + "_string"
+		c.sc.Insert(types.NewConst(0, c.pkg, sname,
+			types.New("string"), exact.MakeString(fmt.Sprintf("%d", metric.Get()))))
 		name = strings.Replace(metricName, ".", "_", -1) + "_rate"
 		c.sc.Insert(types.NewConst(0, c.pkg, name,
 			types.New("float64"), exact.MakeFloat64(metric.ComputeRate())))
