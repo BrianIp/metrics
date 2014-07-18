@@ -3,14 +3,12 @@
 package check
 
 import (
-	"io"
-
 	"github.com/measure/metrics"
 )
 
 type Checker interface {
 	// Runs metric check
-	CheckAll(w io.Writer) ([]string, error)
+	CheckAll() ([]CheckResult, error)
 
 	// TODO: should these functions really be exported?
 	NewScopeAndPackage() error

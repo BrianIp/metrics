@@ -17,7 +17,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io"
 	"net/http"
 	"os"
 	"reflect"
@@ -35,6 +34,13 @@ type checker struct {
 	pkg        *types.Package
 	hostport   string
 	configFile string
+}
+
+type CheckResult struct {
+	Name    string
+	Message string
+	Owner   string
+	Value   float64
 }
 
 func New(hostport string, configFile string) (Checker, error) {
@@ -63,8 +69,8 @@ func (c *checker) NewScopeAndPackage() error {
 
 //ranges through config file and checks all expressions.
 // prints result messages to stdout
-func (c *checker) CheckAll(w io.Writer) ([]string, error) {
-	result := []string{}
+func (c *checker) CheckAll() ([]CheckResult, error) {
+	result := []CheckResult{}
 	cnf, err := conf.ReadConfigFile(c.configFile)
 	if err != nil {
 		return nil, err
@@ -79,14 +85,10 @@ func (c *checker) CheckAll(w io.Writer) ([]string, error) {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		message := ""
-		var m string
-		owner, err := cnf.GetString(section, "owner")
-		if err == nil {
-			message = message + owner
-		} else {
-			message = message + "owner: unknown"
+		cr := &CheckResult{
+			Name: section,
 		}
+		var m string
 		if exact.BoolVal(r) {
 			m, err = cnf.GetString(section, "true")
 			if err != nil {
@@ -98,13 +100,30 @@ func (c *checker) CheckAll(w io.Writer) ([]string, error) {
 				continue
 			}
 		}
+		val, err := cnf.GetString(section, "val")
+		if err == nil {
+			t, v, err := types.Eval(val, c.pkg, c.sc)
+			if err == nil {
+				if types.Identical(t, types.Typ[types.UntypedFloat]) || types.Identical(t, types.Typ[types.Float64]) {
+					x, _ := exact.Float64Val(v)
+					cr.Value = x
+				}
+			}
+		}
+		owner, err := cnf.GetString(section, "owner")
+		if err == nil {
+			cr.Owner = owner
+		} else {
+			cr.Owner = "unknown"
+		}
+
 		_, msg, err := types.Eval(m, c.pkg, c.sc)
 		if err != nil {
-			result = append(result, message+" | "+m)
-			fmt.Println(err)
+			cr.Message = m
 		} else {
-			result = append(result, message+" | "+exact.StringVal(msg))
+			cr.Message = exact.StringVal(msg)
 		}
+		result = append(result, *cr)
 	}
 	return result, nil
 }
